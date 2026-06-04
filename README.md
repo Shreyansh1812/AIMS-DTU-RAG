@@ -4,7 +4,7 @@
 
 ## Architecture & Data Flow
 
-**Pre-built database (no ingestion step).** The vector store in `qdrant_arxiv_db/` is already populated with hybrid dense-sparse embeddings of the paper corpus. The evaluation suite is **purely inference and analysis**—there is **no `ingest.py` requirement** to run experiments.
+**Pre-built database (ingestion optional).** The vector store in `qdrant_arxiv_db/` is already populated with hybrid dense-sparse embeddings of the paper corpus. If you want to add or refresh papers, run `ingest.py` to rebuild the collection from PDFs in `test_pdfs/`.
 
 **1. Memory Layer (Hybrid Retrieval).**
 - **Qdrant Hybrid Search** over **Dense** vectors (BAAI/bge-small-en-v1.5) and **Sparse/Lexical** vectors (prithivida/Splade_PP_en_v1).
@@ -16,7 +16,7 @@
 - Model runtime: **Mistral-7B** via local **Ollama**.
 
 **3. Evaluation Pipeline (Automated Grading).**
-- `evaluate.py` runs the ablation suite over `eval/questions.jsonl`.
+- `evaluate.py` runs a final submission pass over `eval/questions.jsonl` and writes `predictions.jsonl` at the repo root.
 - `judge.py` performs LLM-as-a-Judge scoring using strict `re.findall` extraction to compute citation precision, recall, and faithfulness without relying on fragile formatting compliance.
 
 ## Ablation Configurations
@@ -60,7 +60,21 @@ pip install -r requirements.txt
 ollama run mistral
 ```
 
+**Optional (only if refreshing the corpus):**
 ```bash
-python evaluate.py  # Generates test telemetry logs in /predictions
+# Start Grobid (Docker) if you need ingestion
+docker run -t --rm -p 8070:8070 lfoppiano/grobid:0.8.0
+
+# Rebuild the local Qdrant collection from PDFs in test_pdfs/
+python ingest.py
+```
+
+```bash
+python evaluate.py  # Generates predictions.jsonl at repo root
 python judge.py     # Parses predictions and outputs metric evaluations
 ```
+
+## Submission Outputs
+
+- Root submission file: `predictions.jsonl` (one JSON object per line).
+- Per-configuration outputs (if generated): `predictions/<config_name>.jsonl`.
